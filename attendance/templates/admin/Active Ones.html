@@ -1,0 +1,918 @@
+
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% block extrastyle %}
+<style>
+
+  
+th {
+  text-align: center;
+  vertical-align: middle;
+}
+
+th div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.2;
+}
+
+th .day-num {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+th .day-short {
+  font-size: 11px;
+  color: #777;
+}
+
+.content {
+  max-width: 100%;
+  width: 95%;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.admin-table img, img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 6px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.employee-cell {
+  text-align: left;
+  padding: 6px 10px;
+  width: 240px;
+}
+
+.employee-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.emp-avatar {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 100%;
+  object-fit: cover;
+  object-position: center;
+  border: 1px solid #ddd;
+  background: #fff;
+  display: block;
+}
+
+.emp-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.emp-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: #aeaeae;
+}
+
+.emp-id {
+  font-size: 12px;
+  color: #666;
+}
+
+.designation-cell {
+  width: 160px;
+  font-size: 13px;
+  color: #d7cfcf;
+}
+
+.admin-table img.status-icon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  display: inline-block;
+}
+
+.day-cell {
+  text-align: center;
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.dashboard-header img {
+  max-height: 100px;
+  height: auto;
+}
+
+.dashboard-header h1 {
+  font-weight: bold;
+  margin-left: 20px;
+  flex-grow: 1;
+  text-align: right;
+}
+
+.filter-form {
+  margin-bottom: 20px;
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filter-form label {
+  font-weight: bold;
+  margin-right: 5px;
+}
+
+.legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 3px;
+  justify-content: center;
+  align-items: center;
+  padding: 8px;
+  border-radius: 3px;
+  width: 80%;
+  margin-left: 15.9%;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+/* Header day stacked style */
+th .day-num {
+  font-weight: 600;
+}
+
+th .day-short {
+  font-size: 11px;
+  color: #666;
+}
+
+/* Scrollable table */
+.table-container {
+  max-height: 75vh;
+  overflow-x: auto;
+  overflow-y: auto;
+  border-radius: 4px;
+}
+
+/* Sticky header */
+.table-container thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Filter Form -->
+<form method="get" class="filter-form">
+  <div>
+    <label>Department:</label>
+    <select name="department">
+      <option value="">All</option>
+      {% for dept in departments %}
+      <option value="{{ dept }}" {% if dept == selected_department %}selected{% endif %}>{{ dept }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <label>Designation:</label>
+    <select name="designation">
+      <option value="">All</option>
+      {% for desig in designations %}
+      <option value="{{ desig }}" {% if desig == selected_designation %}selected{% endif %}>{{ desig }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <label>Month:</label>
+    <select name="month">
+      {% for m in months %}
+      <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ m }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <label>Year:</label>
+    <select name="year">
+      {% for y in years %}
+      <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <button type="submit">Filter</button>
+</form>
+
+<!-- Dashboard Header -->
+<div class="dashboard-header">
+  <img src="{% static 'images/logo.png' %}" alt="Company Logo" />
+  <h1>Attendance Dashboard – {{ month }}/{{ year }}</h1>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <div class="legend-item">Present <img class="legend-icons" src="{% static 'icons/present.png' %}" alt="Present" title="Present" /></div>
+  <div class="legend-item">Absent <img class="legend-icons" src="{% static 'icons/absent.png' %}" alt="Absent" title="Absent" /></div>
+  <div class="legend-item">Pending <img class="legend-icons" src="{% static 'icons/pendings.png' %}" alt="Pending" title="Pending" /></div>
+  <div class="legend-item">On Leave <img class="legend-icons" src="{% static 'icons/on_leave.png' %}" alt="On Leave" title="On Leave" /></div>
+  <div class="legend-item">Holiday <img class="legend-icons" src="{% static 'icons/holidays.png' %}" alt="Holiday" title="Holiday" /></div>
+  <div class="legend-item">Half Day <img class="legend-icons" src="{% static 'icons/half_day.png' %}" alt="Half Day" title="Half Day" /></div>
+  <div class="legend-item">Early Leave <img class="legend-icons" src="{% static 'icons/early_leave.png' %}" alt="Early Leave" title="Early Leave" /></div>
+  <div class="legend-item">Off Day <img class="legend-icons" src="{% static 'icons/off_day.png' %}" alt="Off Day" title="Off Day" /></div>
+</div>
+
+<!-- Attendance Table -->
+<div class="table-container">
+  <table class="admin-table">
+    <thead>
+      <tr style="background-color: #f0f0f0">
+        <th>Employee</th>
+        <th>Designation</th>
+        {% for day in days %}
+        <th title="{{ day.full }}">
+          <div style="line-height:1;">
+            <div class="day-num">{{ day.num }}</div>
+            <div class="day-short">{{ day.short }}</div>
+          </div>
+        </th>
+        {% endfor %}
+        <th>Total Present</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for emp in employees %}
+      <tr>
+        <!-- avatar + name -->
+        <td class="employee-cell">
+          <div class="employee-info">
+            {% if emp.emp_image_url %}
+              <img class="emp-avatar" src="{{ emp.emp_image_url }}" alt="{{ emp.name }}">
+            {% else %}
+              <img class="emp-avatar" src="{% static 'icons/default-avatar.png' %}" alt="avatar">
+            {% endif %}
+            <div class="emp-meta">
+              <div class="emp-name">{{ emp.name }}</div>
+              <div class="emp-id">{{ emp.employee_id }}</div>
+            </div>
+          </div>
+        </td>
+
+        <td class="designation-cell">{{ emp.designation }}</td>
+
+        {% for status in emp.statuses %}
+        <td class="day-cell">
+          {% if status %}
+            {% with status|cut:'icons/'|cut:'.png' as label %}
+              <img class="status-icon" src="{% static status %}" alt="{{ label }}" title="{{ label|capfirst }}" />
+            {% endwith %}
+          {% else %}
+            <span style="color: #ccc">—</span>
+          {% endif %}
+        </td>
+        {% endfor %}
+        <td style="font-weight: bold">{{ emp.total_present }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
+
+<!-- Previous active one -->
+
+
+
+
+{% extends "admin/base_site.html" %}
+{% load static list_utils %}
+{% block extrastyle %}
+<style>
+
+  
+th {
+  text-align: center;
+  vertical-align: middle;
+}
+
+th div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.2;
+}
+
+th .day-num {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+th .day-short {
+  font-size: 11px;
+  color: #777;
+}
+
+.content {
+  max-width: 100%;
+  width: 95%;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.admin-table img, img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 6px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.employee-cell {
+  text-align: left;
+  padding: 6px 10px;
+  width: 240px;
+}
+
+.employee-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.emp-avatar {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 100%;
+  object-fit: cover;
+  object-position: center;
+  border: 1px solid #ddd;
+  background: #fff;
+  display: block;
+}
+
+.emp-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.emp-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: #aeaeae;
+}
+
+.emp-id {
+  font-size: 12px;
+  color: #666;
+}
+
+.designation-cell {
+  width: 160px;
+  font-size: 13px;
+  color: #d7cfcf;
+}
+
+.admin-table img.status-icon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  display: inline-block;
+}
+
+.day-cell {
+  text-align: center;
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.dashboard-header img {
+  max-height: 100px;
+  height: auto;
+}
+
+.dashboard-header h1 {
+  font-weight: bold;
+  margin-left: 20px;
+  flex-grow: 1;
+  text-align: right;
+}
+
+.filter-form {
+  margin-bottom: 20px;
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filter-form label {
+  font-weight: bold;
+  margin-right: 5px;
+}
+
+.legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 3px;
+  justify-content: center;
+  align-items: center;
+  padding: 8px;
+  border-radius: 3px;
+  width: 80%;
+  margin-left: 15.9%;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+/* Header day stacked style */
+th .day-num {
+  font-weight: 600;
+}
+
+th .day-short {
+  font-size: 11px;
+  color: #666;
+}
+
+/* Scrollable table */
+.table-container {
+  max-height: 75vh;
+  overflow-x: auto;
+  overflow-y: auto;
+  border-radius: 4px;
+}
+
+/* Sticky header */
+.table-container thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Filter Form -->
+<form method="get" class="filter-form">
+  <div>
+    <label>Department:</label>
+    <select name="department">
+      <option value="">All</option>
+      {% for dept in departments %}
+      <option value="{{ dept }}" {% if dept == selected_department %}selected{% endif %}>{{ dept }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <label>Designation:</label>
+    <select name="designation">
+      <option value="">All</option>
+      {% for desig in designations %}
+      <option value="{{ desig }}" {% if desig == selected_designation %}selected{% endif %}>{{ desig }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <label>Month:</label>
+    <select name="month">
+      {% for m in months %}
+      <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ m }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <label>Year:</label>
+    <select name="year">
+      {% for y in years %}
+      <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <button type="submit">Filter</button>
+</form>
+
+<!-- Dashboard Header -->
+<div class="dashboard-header">
+  <img src="{% static 'images/logo.png' %}" alt="Company Logo" />
+  <h1>Attendance Dashboard – {{ month }}/{{ year }}</h1>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <div class="legend-item">Present <img class="legend-icons" src="{% static 'icons/present.png' %}" alt="Present" title="Present" /></div>
+  <div class="legend-item">Absent <img class="legend-icons" src="{% static 'icons/absent.png' %}" alt="Absent" title="Absent" /></div>
+  <div class="legend-item">Pending <img class="legend-icons" src="{% static 'icons/pendings.png' %}" alt="Pending" title="Pending" /></div>
+  <div class="legend-item">On Leave <img class="legend-icons" src="{% static 'icons/on_leave.png' %}" alt="On Leave" title="On Leave" /></div>
+  <div class="legend-item">Holiday <img class="legend-icons" src="{% static 'icons/holidays.png' %}" alt="Holiday" title="Holiday" /></div>
+  <div class="legend-item">Half Day <img class="legend-icons" src="{% static 'icons/half_day.png' %}" alt="Half Day" title="Half Day" /></div>
+  <div class="legend-item">Early Leave <img class="legend-icons" src="{% static 'icons/early_leave.png' %}" alt="Early Leave" title="Early Leave" /></div>
+  <div class="legend-item">Off Day <img class="legend-icons" src="{% static 'icons/off_day.png' %}" alt="Off Day" title="Off Day" /></div>
+</div>
+
+<!-- Attendance Table -->
+<div class="table-container">
+  <table class="admin-table">
+    <thead>
+      <tr style="background-color: #f0f0f0">
+        <th>Employee</th>
+        <th>Designation</th>
+        {% for day in days %}
+        <th title="{{ day.full }}">
+          <div style="line-height:1;">
+            <div class="day-num">{{ day.num }}</div>
+            <div class="day-short">{{ day.short }}</div>
+          </div>
+        </th>
+        {% endfor %}
+        <th>Total Present</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for emp in employees %}
+      <tr>
+        <!-- avatar + name -->
+        <td class="employee-cell">
+          <div class="employee-info">
+            {% if emp.emp_image_url %}
+              <img class="emp-avatar" src="{{ emp.emp_image_url }}" alt="{{ emp.name }}">
+            {% else %}
+              <img class="emp-avatar" src="{% static 'icons/default-avatar.png' %}" alt="avatar">
+            {% endif %}
+            <div class="emp-meta">
+              <div class="emp-name">{{ emp.name }}</div>
+              <div class="emp-id">{{ emp.employee_id }}</div>
+            </div>
+          </div>
+        </td>
+
+        <td class="designation-cell">{{ emp.designation }}</td>
+
+        {# ---------- clickable icon cell loop (only changed part) ---------- #}
+        {% for _ in emp.statuses %}
+          {% with idx=forloop.counter0 %}
+            {% with st=emp.statuses|get_index:idx %}
+              <td class="day-cell" title="{% if st %}{{ st.status }}{% endif %}">
+                {% if st %}
+                  {% if st.change_url %}
+                    {% with day=days|get_index:idx %}
+                      <a href="{{ st.change_url }}" onclick="openPopup(this.href); return false;" aria-label="Open record for {{ emp.name }} on {{ day.iso }}">
+                        <img class="status-icon" src="{% static st.icon %}" alt="{{ st.status }}" title="{{ st.status }}" />
+                      </a>
+                    {% endwith %}
+                  {% elif st.list_url %}
+                    {% with day=days|get_index:idx %}
+                      <a href="{{ st.list_url }}" aria-label="View list for {{ emp.name }} on {{ day.iso }}">
+                        <img class="status-icon" src="{% static st.icon %}" alt="{{ st.status }}" title="{{ st.status }}" />
+                      </a>
+                    {% endwith %}
+                  {% else %}
+                    <img class="status-icon" src="{% static st.icon %}" alt="{{ st.status }}" title="{{ st.status }}" />
+                  {% endif %}
+                {% else %}
+                  <span style="color: #ccc">—</span>
+                {% endif %}
+              </td>
+            {% endwith %}
+          {% endwith %}
+        {% endfor %}
+        {# ---------- end changed block ---------- #}
+
+        <td style="font-weight: bold">{{ emp.total_present }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
+
+{# optional popup helper; keep if you want change pages to open in a centered popup #}
+<script>
+function openPopup(url){
+  var w = Math.min(1000, Math.round(screen.width * 0.8));
+  var h = Math.min(800, Math.round(screen.height * 0.8));
+  var left = (screen.width/2)-(w/2);
+  var top = (screen.height/2)-(h/2);
+  window.open(url, 'attRecord', 'toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width='+w+',height='+h+',top='+top+',left='+left);
+}
+</script>
+
+
+<!-- current active one -->
+
+
+{% extends "admin/base_site.html" %}
+{% load static list_utils %}
+
+{% block extrastyle %}
+<style>
+/* --- your CSS unchanged, trimmed to essentials here --- */
+th { text-align: center; vertical-align: middle; }
+th div { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.2; }
+th .day-num { font-weight: 700; font-size: 14px; }
+th .day-short { font-size: 11px; color: #777; }
+.content { max-width: 100%; width: 95%; }
+.admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.admin-table img, img { width: 24px; height: 24px; object-fit: contain; }
+.admin-table th, .admin-table td { padding: 6px; text-align: left; vertical-align: middle; }
+.employee-cell { text-align: left; padding: 6px 10px; width: 240px; }
+.employee-info { display: flex; align-items: center; gap: 10px; }
+.emp-avatar { width: 40px !important; height: 40px !important; border-radius: 100%; object-fit: cover; object-position: center; border: 1px solid #ddd; background: #fff; display: block; }
+.emp-meta { display: flex; flex-direction: column; }
+.emp-name { font-weight: 600; font-size: 13px; color: #aeaeae; }
+.emp-id { font-size: 12px; color: #666; }
+.designation-cell { width: 160px; font-size: 13px; color: #d7cfcf; }
+.admin-table img.status-icon { width: 22px; height: 22px; object-fit: contain; display: inline-block; }
+.day-cell { text-align: center; }
+.dashboard-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.dashboard-header img { max-height: 100px; height: auto; }
+.dashboard-header h1 { font-weight: bold; margin-left: 20px; flex-grow: 1; text-align: right; }
+.filter-form { margin-bottom: 20px; display: flex; gap: 20px; flex-wrap: wrap; align-items: center; }
+.filter-form label { font-weight: bold; margin-right: 5px; }
+.legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 3px; justify-content: center; align-items: center; padding: 8px; border-radius: 3px; width: 80%; margin-left: 15.9%; }
+.legend-item { display: flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 13px; }
+th .day-num { font-weight: 600; }
+th .day-short { font-size: 11px; color: #666; }
+.table-container { max-height: 75vh; overflow-x: auto; overflow-y: auto; border-radius: 4px; }
+.table-container thead th { position: sticky; top: 0; z-index: 2; }
+/* Modal overlay initial hidden */
+#att-modal-overlay { display: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Filter Form -->
+<form method="get" class="filter-form">
+  <div>
+    <label>Department:</label>
+    <select name="department">
+      <option value="">All</option>
+      {% for dept in departments %}
+      <option value="{{ dept }}" {% if dept == selected_department %}selected{% endif %}>{{ dept }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <label>Designation:</label>
+    <select name="designation">
+      <option value="">All</option>
+      {% for desig in designations %}
+      <option value="{{ desig }}" {% if desig == selected_designation %}selected{% endif %}>{{ desig }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <label>Month:</label>
+    <select name="month">
+      {% for m in months %}
+      <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ m }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <label>Year:</label>
+    <select name="year">
+      {% for y in years %}
+      <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <button type="submit">Filter</button>
+</form>
+
+<!-- Dashboard Header -->
+<div class="dashboard-header">
+  <img src="{% static 'images/logo.png' %}" alt="Company Logo" />
+  <h1>Attendance Dashboard – {{ month }}/{{ year }}</h1>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <div class="legend-item">Present <img class="legend-icons" src="{% static 'icons/present.png' %}" alt="Present" title="Present" /></div>
+  <div class="legend-item">Absent <img class="legend-icons" src="{% static 'icons/absent.png' %}" alt="Absent" title="Absent" /></div>
+  <div class="legend-item">Pending <img class="legend-icons" src="{% static 'icons/pendings.png' %}" alt="Pending" title="Pending" /></div>
+  <div class="legend-item">On Leave <img class="legend-icons" src="{% static 'icons/on_leave.png' %}" alt="On Leave" title="On Leave" /></div>
+  <div class="legend-item">Holiday <img class="legend-icons" src="{% static 'icons/holidays.png' %}" alt="Holiday" title="Holiday" /></div>
+  <div class="legend-item">Half Day <img class="legend-icons" src="{% static 'icons/half_day.png' %}" alt="Half Day" title="Half Day" /></div>
+  <div class="legend-item">Early Leave <img class="legend-icons" src="{% static 'icons/early_leave.png' %}" alt="Early Leave" title="Early Leave" /></div>
+  <div class="legend-item">Off Day <img class="legend-icons" src="{% static 'icons/off_day.png' %}" alt="Off Day" title="Off Day" /></div>
+    <div class="legend-item">Late <img class="legend-icons" src="{% static 'icons/late.png' %}" alt="Late" title="Late" /></div>
+</div>
+
+<!-- Attendance Table -->
+<div class="table-container">
+  <table class="admin-table">
+    <thead>
+      <tr style="background-color: #f0f0f0">
+        <th>Employee</th>
+        <th>Designation</th>
+        {% for day in days %}
+        <th title="{{ day.full }}">
+          <div style="line-height:1;">
+            <div class="day-num">{{ day.num }}</div>
+            <div class="day-short">{{ day.short }}</div>
+          </div>
+        </th>
+        {% endfor %}
+        <th>Total Present</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for emp in employees %}
+      <tr>
+        <td class="employee-cell">
+          <div class="employee-info">
+            {% if emp.emp_image_url %}
+              <img class="emp-avatar" src="{{ emp.emp_image_url }}" alt="{{ emp.name }}">
+            {% else %}
+              <img class="emp-avatar" src="{% static 'icons/default-avatar.png' %}" alt="avatar">
+            {% endif %}
+            <div class="emp-meta">
+              <div class="emp-name">{{ emp.name }}</div>
+              <div class="emp-id">{{ emp.employee_id }}</div>
+            </div>
+          </div>
+        </td>
+
+        <td class="designation-cell">{{ emp.designation }}</td>
+
+        {% for _ in emp.statuses %}
+          {% with idx=forloop.counter0 %}
+            {% with st=emp.statuses|get_index:idx %}
+              <td class="day-cell" title="{% if st %}{{ st.status }}{% endif %}">
+                {% if st %}
+                  {% if st.change_url %}
+                    {% with day=days|get_index:idx %}
+                      <a href="{{ st.change_url }}" onclick="return openPopup(this.href);" aria-label="Open record for {{ emp.name }} on {{ day.iso }}">
+                        <img class="status-icon" src="{% static st.icon %}" alt="{{ st.status }}" title="{{ st.status }}" />
+                      </a>
+                    {% endwith %}
+                  {% elif st.list_url %}
+                    {% with day=days|get_index:idx %}
+                      <a href="{{ st.list_url }}" aria-label="View list for {{ emp.name }} on {{ day.iso }}">
+                        <img class="status-icon" src="{% static st.icon %}" alt="{{ st.status }}" title="{{ st.status }}" />
+                      </a>
+                    {% endwith %}
+                  {% else %}
+                    <img class="status-icon" src="{% static st.icon %}" alt="{{ st.status }}" title="{{ st.status }}" />
+                  {% endif %}
+                {% else %}
+                  <span style="color: #ccc">—</span>
+                {% endif %}
+              </td>
+            {% endwith %}
+          {% endwith %}
+        {% endfor %}
+
+        <td style="font-weight: bold">{{ emp.total_present }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+/* Single robust popup + modal-fallback helper */
+function openPopup(url){
+  try {
+    console.info('openPopup called for', url);
+    var w = Math.min(1000, Math.round(screen.width * 0.8));
+    var h = Math.min(800, Math.round(screen.height * 0.8));
+    var left = Math.round((screen.width - w) / 2);
+    var top = Math.round((screen.height - h) / 2);
+    var name = 'attRecord_popup';
+    var features = [
+      'toolbar=no','location=no','status=no','menubar=no','scrollbars=yes','resizable=yes',
+      'width=' + w,'height=' + h,'top=' + top,'left=' + left
+    ].join(',');
+
+    var win = window.open(url, name, features);
+
+    if (!win || typeof win.closed === 'undefined') {
+      console.warn('Popup blocked or prevented; using modal fallback');
+      showModalIframe(url);
+      return false;
+    }
+
+    try { win.focus(); } catch(e) {}
+    return false;
+  } catch (err) {
+    console.error('openPopup error', err);
+    showModalIframe(url);
+    return false;
+  }
+}
+
+function showModalIframe(url){
+  if (!document.getElementById('att-modal-overlay')) {
+    var overlay = document.createElement('div');
+    overlay.id = 'att-modal-overlay';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.background = 'rgba(0,0,0,0.5)';
+    overlay.style.zIndex = '99999';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.innerHTML = '\
+      <div id="att-modal" style="width:90%;max-width:1100px;height:90%;max-height:900px;background:#fff;border-radius:6px;overflow:hidden;display:flex;flex-direction:column;">\
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid #eee;background:#fafafa;">\
+          <strong style="font-size:14px">Record</strong>\
+          <div style="display:flex;gap:8px;align-items:center;">\
+            <button id="att-modal-refresh" style="padding:6px 10px;border:1px solid #ddd;background:#fff;border-radius:4px;cursor:pointer">Refresh</button>\
+            <button id="att-modal-close" style="padding:6px 10px;border:1px solid #ddd;background:#fff;border-radius:4px;cursor:pointer">Close</button>\
+          </div>\
+        </div>\
+        <iframe id="att-modal-iframe" src=\"\" style=\"border:0;width:100%;flex:1;background:#fff;\"></iframe>\
+      </div>';
+    document.body.appendChild(overlay);
+
+    document.getElementById('att-modal-close').addEventListener('click', closeModalIframe);
+    document.getElementById('att-modal-refresh').addEventListener('click', function(){
+      var f = document.getElementById('att-modal-iframe');
+      f.src = f.src;
+    });
+
+    overlay.addEventListener('click', function(e){
+      if (e.target === overlay) closeModalIframe();
+    });
+  }
+
+  var iframe = document.getElementById('att-modal-iframe');
+  iframe.src = url;
+  document.getElementById('att-modal-overlay').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModalIframe(){
+  var overlay = document.getElementById('att-modal-overlay');
+  if (overlay) overlay.style.display = 'none';
+  document.body.style.overflow = '';
+}
+</script> 
+
+{% endblock %}
+ 

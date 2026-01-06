@@ -1,0 +1,154 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+<link rel="stylesheet" href="{% static 'css/style.css' %}">
+<style>
+.employee-detail-card {
+    background: #2b2b2b;
+    border: 1px solid #484848;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+.stat-card {
+    background: #3a3a3a;
+    border: 1px solid #555;
+    border-radius: 6px;
+    padding: 15px;
+    text-align: center;
+    color: #f8f8f2;
+}
+.stat-number {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+.stat-label {
+    font-size: 12px;
+    color: #aaa;
+}
+.record-row {
+    background: #3a3a3a;
+    border: 1px solid #555;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="employee-detail-container">
+    <!-- Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h1 style="color: #f8f8f2; margin: 0;">Employee Details</h1>
+        <div>
+            <a href="{% url 'admin:attendance_employee_change' employee.id %}" class="button" style="margin-right: 10px;">Edit Employee</a>
+            <a href="{% url 'admin:attendance_attendancerecord_add' %}?employee={{ employee.id }}" class="button">Add Attendance</a>
+        </div>
+    </div>
+
+    <!-- Employee Info Card -->
+    <div class="employee-detail-card">
+        <div style="display: flex; align-items: center; gap: 20px;">
+            {% if employee.employee_image %}
+                <img src="{{ employee.employee_image.url }}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid #ddd;" alt="{{ employee.name }}" />
+            {% else %}
+                <img src="{% static 'icons/default-avatar.png' %}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid #ddd;" alt="avatar" />
+            {% endif %}
+            <div style="flex: 1;">
+                <h2 style="color: #f8f8f2; margin: 0 0 10px 0;">{{ employee.name }}</h2>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; color: #ccc;">
+                    <div><strong>Employee ID:</strong> {{ employee.employee_id }}</div>
+                    <div><strong>Department:</strong> {{ employee.department }}</div>
+                    <div><strong>Designation:</strong> {{ employee.designation }}</div>
+                    <div><strong>Email:</strong> {{ employee.email }}</div>
+                    <div><strong>Phone:</strong> {{ employee.phone }}</div>
+                    <div><strong>Branch:</strong> {{ employee.branch }}</div>
+                    {% if employee.hire_date %}
+                        <div><strong>Hire Date:</strong> {{ employee.hire_date|date:"M d, Y" }}</div>
+                    {% endif %}
+                    <div><strong>Monthly Salary:</strong> {{ employee.monthly_salary }} BDT</div>
+                    <div><strong>Status:</strong> 
+                        {% if employee.is_active %}
+                            <span style="color: #4caf50;">Active</span>
+                        {% else %}
+                            <span style="color: #f44336;">Inactive</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Stats -->
+    <div class="employee-detail-card">
+        <h3 style="color: #f8f8f2; margin-bottom: 15px;">{{ current_month }} Attendance Summary</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px;">
+            <div class="stat-card">
+                <div class="stat-number" style="color: #4caf50;">{{ monthly_stats.present }}</div>
+                <div class="stat-label">Present</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" style="color: #f44336;">{{ monthly_stats.absent }}</div>
+                <div class="stat-label">Absent</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" style="color: #ff9800;">{{ monthly_stats.late }}</div>
+                <div class="stat-label">Late Days</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" style="color: #2196f3;">{{ monthly_stats.on_leave }}</div>
+                <div class="stat-label">On Leave</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" style="color: #9c27b0;">{{ monthly_stats.holiday }}</div>
+                <div class="stat-label">Holidays</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Records -->
+    <div class="employee-detail-card">
+        <h3 style="color: #f8f8f2; margin-bottom: 15px;">Recent Attendance Records</h3>
+        {% if recent_records %}
+            {% for record in recent_records %}
+                <div class="record-row">
+                    <div>
+                        <strong style="color: #f8f8f2;">{{ record.date|date:"M d, Y" }}</strong>
+                        <span style="color: #aaa; margin-left: 10px;">({{ record.date|date:"l" }})</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        {% if record.status %}
+                            <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;
+                                {% if record.status == 'Present' %}background: #4caf50; color: white;
+                                {% elif record.status == 'Absent' %}background: #f44336; color: white;
+                                {% elif record.status == 'Late' %}background: #ff9800; color: white;
+                                {% elif record.status == 'On Leave' %}background: #2196f3; color: white;
+                                {% elif record.status == 'Holiday' %}background: #9c27b0; color: white;
+                                {% else %}background: #666; color: white;{% endif %}">
+                                {{ record.status }}
+                            </span>
+                        {% endif %}
+                        {% if record.is_late_indicator %}
+                            <span style="color: #f44336; font-weight: bold;" title="Late">!</span>
+                        {% endif %}
+                        <a href="{% url 'admin:attendance_attendancerecord_change' record.id %}" style="color: #5b80b2; text-decoration: none; font-size: 12px;">Edit</a>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p style="color: #aaa; text-align: center; padding: 20px;">No attendance records found.</p>
+        {% endif %}
+    </div>
+
+    <!-- Back Button -->
+    <div style="text-align: center; margin-top: 20px;">
+        <a href="javascript:history.back()" class="button">← Back to Dashboard</a>
+    </div>
+</div>
+{% endblock %}

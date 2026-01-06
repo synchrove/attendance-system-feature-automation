@@ -1,0 +1,202 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+<link rel="stylesheet" href="{% static 'css/style.css' %}">
+<style>
+/* Additional salary-specific styles */
+.salary-amount { font-family: monospace; font-weight: bold; }
+.positive-amount { color: #4caf50; }
+.negative-amount { color: #f44336; }
+.neutral-amount { color: #e0e0e0; }
+.final-salary { font-size: 1.1em; font-weight: bold; color: #ffeb3b; }
+.rules-section { 
+    background: var(--first-col-bg); 
+    padding: 15px; 
+    border-radius: 6px; 
+    margin-bottom: 20px;
+    border: 1px solid var(--border-color);
+}
+.rules-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.rule-box { 
+    background: var(--bg-color); 
+    padding: 12px; 
+    border-radius: 4px; 
+    border: 1px solid var(--border-color);
+}
+.rule-box h4 { margin: 0 0 8px 0; color: var(--text-color); }
+.rule-box ul { margin: 8px 0; padding-left: 20px; }
+.rule-box li { margin: 4px 0; color: var(--legend-text); }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Filters -->
+<form method="get" class="filter-form" role="search" aria-label="Salary filters">
+  <div><label for="id_month">Month:</label>
+    <select id="id_month" name="month">
+      {% for m in months %}
+        <option value="{{ m }}" {% if m == month %}selected{% endif %}>
+          {% if m == 1 %}January{% elif m == 2 %}February{% elif m == 3 %}March{% elif m == 4 %}April{% elif m == 5 %}May{% elif m == 6 %}June{% elif m == 7 %}July{% elif m == 8 %}August{% elif m == 9 %}September{% elif m == 10 %}October{% elif m == 11 %}November{% elif m == 12 %}December{% endif %}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div><label for="id_year">Year:</label>
+    <select id="id_year" name="year">
+      {% for y in years %}
+        <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div><label for="id_department">Department:</label>
+    <select id="id_department" name="department">
+      <option value="">All Departments</option>
+      {% for dept in departments %}
+        <option value="{{ dept }}" {% if dept == selected_department %}selected{% endif %}>{{ dept }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div><button type="submit">Filter</button></div>
+</form>
+
+<!-- Navigation -->
+<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+  <a class="button" href="/admin/" title="Back to Admin" style="padding:8px 12px;border:1px solid #484848;background:#3a3a3a;border-radius:4px;color:#f8f8f2;text-decoration:none;">← Back to Admin</a>
+</div>
+
+<!-- Actions Section -->
+<div style="background:#2b2b2b;padding:12px;border-radius:6px;margin:15px 0;border:1px solid #484848;">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+    
+    <!-- Update Section -->
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="color:#f8f8f2;font-weight:600;font-size:14px;">🔄 Actions:</span>
+      <form method="post" style="display:inline;">
+        {% csrf_token %}
+        <input type="hidden" name="process_auto" value="1">
+        <button type="submit" style="padding:8px 12px;border:1px solid #4caf50;background:#4caf50;border-radius:4px;color:white;cursor:pointer;font-size:13px;">Update Salary Adjustments</button>
+      </form>
+    </div>
+
+    <!-- Status Section -->
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="color:#4caf50;font-size:13px;">✅ Auto-processing enabled</span>
+    </div>
+    
+  </div>
+  
+  <!-- Help Text -->
+  <div style="margin-top:8px;font-size:11px;color:#999;">
+    <strong>Update:</strong> Recalculates automatic salary adjustments based on current attendance data for {{ month_name }}
+  </div>
+</div>
+
+<!-- Success Message -->
+{% if message %}
+<div style="color:#4caf50;background:var(--first-col-bg);padding:8px;border-radius:4px;margin-bottom:8px;border:1px solid #4caf50;">
+  ✅ {{ message }}
+</div>
+{% endif %}
+
+<!-- Header & Logo -->
+<div class="dashboard-header">
+  <img src="{% static 'images/logo.png' %}" alt="Company Logo" style="height:36px;" />
+  <h1 style="margin:0;font-size:16px;color:var(--text-color);">💰 Salary Report – {{ month_name }}</h1>
+</div>
+
+<!-- Rules Section -->
+<div class="rules-section">
+  <div class="rules-grid">
+    <div class="rule-box">
+      <h4>💰 Bonus Rules</h4>
+      <ul>
+        <li><strong>Perfect Attendance:</strong> 1,000 BDT (0 late days)</li>
+        <li><strong>Manual Bonuses:</strong> Added by admin</li>
+      </ul>
+    </div>
+    <div class="rule-box">
+      <h4>⚠️ Fine Rules</h4>
+      <ul>
+        <li><strong>Attendance Issues Fine:</strong> 1 day's salary per 3 problematic days (Monthly Salary ÷ 30)</li>
+        <li><strong>Problematic Days:</strong> Late, Absent, Half Day, Early Leave, On Leave</li>
+        <li><strong>Manual Fines:</strong> Added by admin</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- Salary Table -->
+<div class="table-container" role="region" aria-label="Salary table">
+  <table class="admin-table" role="table">
+    <thead>
+      <tr style="background-color:var(--header-bg)">
+        <th scope="col" style="z-index: 30 !important;">Employee</th>
+        <th scope="col">Department</th>
+        <th scope="col">Working Days</th>
+        <th scope="col">Problem Days</th>
+        <th scope="col">Monthly Salary</th>
+        <th scope="col">Bonuses (+)</th>
+        <th scope="col">Fines (-)</th>
+        <th scope="col">Final Salary</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for data in salary_data %}
+      <tr>
+        <td class="employee-cell">
+          <div style="display:flex;align-items:center;gap:10px;">
+            {% if data.employee.employee_image %}
+              <img src="{{ data.employee.employee_image.url }}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:1px solid #ddd" alt="{{ data.employee.name }}" />
+            {% else %}
+              <img src="{% static 'icons/default-avatar.png' %}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:1px solid #ddd" alt="avatar" />
+            {% endif %}
+            <div>
+              <div style="font-weight:600;font-size:13px;color:#dac3c3">{{ data.employee.name }}</div>
+              <div style="font-size:12px;color:#9b9b9b">{{ data.employee.employee_id }}</div>
+            </div>
+          </div>
+        </td>
+        <td>{{ data.employee.department }}</td>
+        <td class="salary-amount neutral-amount">{{ data.working_days }}</td>
+        <td class="salary-amount" style="color:#ff6600;">
+          {% if data.late_days > 0 %}{{ data.late_days }}{% else %}-{% endif %}
+        </td>
+        <td class="salary-amount neutral-amount">{{ data.base_salary|floatformat:2 }} BDT</td>
+        <td class="salary-amount positive-amount">
+          {% if data.total_bonus > 0 %}+{{ data.total_bonus|floatformat:2 }} BDT{% else %}-{% endif %}
+        </td>
+        <td class="salary-amount negative-amount">
+          {% if data.total_fine > 0 %}-{{ data.total_fine|floatformat:2 }} BDT{% else %}-{% endif %}
+        </td>
+        <td class="salary-amount final-salary">{{ data.final_salary|floatformat:2 }} BDT</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr style="background-color:var(--header-bg);font-weight:bold;">
+        <td colspan="4"><strong>TOTALS</strong></td>
+        <td class="salary-amount neutral-amount">{{ totals.base_salary|floatformat:2 }} BDT</td>
+        <td class="salary-amount positive-amount">+{{ totals.bonuses|floatformat:2 }} BDT</td>
+        <td class="salary-amount negative-amount">-{{ totals.fines|floatformat:2 }} BDT</td>
+        <td class="salary-amount final-salary">{{ totals.final_salary|floatformat:2 }} BDT</td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+<!-- Calculation Info -->
+<div style="margin-top:20px;padding:15px;background:var(--first-col-bg);border-radius:6px;border:1px solid var(--border-color);">
+  <h3 style="margin:0 0 10px 0;color:var(--text-color);">📋 Salary Calculation:</h3>
+  <ul style="margin:0;padding-left:20px;color:var(--legend-text);">
+    <li><strong>Monthly Salary:</strong> Fixed monthly amount</li>
+    <li><strong>Perfect Attendance Bonus:</strong> 1,000 BDT (0 problematic days)</li>
+    <li><strong>Attendance Issues Fine:</strong> 1 day's salary per 3 problematic days (Monthly Salary ÷ 30)</li>
+    <li><strong>Final Salary:</strong> Monthly Salary + Bonuses - Fines</li>
+  </ul>
+</div>
+
+{% endblock %}

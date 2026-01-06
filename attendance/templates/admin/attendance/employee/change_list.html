@@ -1,0 +1,68 @@
+{% extends "admin/change_list.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'css/style.css' %}">
+{% endblock %}
+
+{% block content %}
+{% if show_import_export %}
+<!-- Import/Export Section -->
+<div style="background:#2b2b2b;padding:12px;border-radius:6px;margin:15px 0;border:1px solid #484848;">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+    
+    <!-- Export Section -->
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="color:#f8f8f2;font-weight:600;font-size:14px;">📦 Export:</span>
+      <form method="get" style="display:inline;">
+        {% for key, value in request.GET.items %}
+          {% if key != 'export' %}
+            <input type="hidden" name="{{ key }}" value="{{ value }}">
+          {% endif %}
+        {% endfor %}
+        <input type="hidden" name="export" value="1">
+        <button type="submit" style="padding:8px 12px;border:1px solid #5b80b2;background:#5b80b2;border-radius:4px;color:#ffffff;cursor:pointer;font-size:13px;">Export ZIP (with Images)</button>
+      </form>
+      {% if not has_openpyxl %}
+        <span style="font-size:11px;color:#ff6b6b;">(requires openpyxl)</span>
+      {% endif %}
+    </div>
+
+    <!-- Import Section -->
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="color:#f8f8f2;font-weight:600;font-size:14px;">📥 Import:</span>
+      <form method="post" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;">
+        {% csrf_token %}
+        <input type="file" name="import_file" accept=".csv,.xlsx,.xlsm,.zip" style="background:#3a3a3a;color:#f8f8f2;border:1px solid #484848;padding:6px;border-radius:4px;font-size:12px;" />
+        <button type="submit" style="padding:8px 12px;border:1px solid #417690;background:#417690;color:#ffffff;border-radius:4px;cursor:pointer;font-size:13px;">Import</button>
+      </form>
+    </div>
+    
+  </div>
+  
+  <!-- Help Text -->
+  <div style="margin-top:8px;font-size:11px;color:#999;">
+    <strong>Supported formats:</strong> CSV, Excel (.xlsx, .xlsm), ZIP (with employee photos)<br>
+    <strong>Required columns:</strong> employee_id, name | <strong>Optional:</strong> email, phone, department, designation, monthly_salary, hire_date
+  </div>
+</div>
+
+<!-- Import feedback -->
+{% if messages %}
+  {% for message in messages %}
+    {% if message.tags == 'error' %}
+      <div style="color:#ff6b6b;background:#3d3c3c;padding:10px;border-radius:4px;margin-bottom:12px;border-left:4px solid #ff6b6b;">
+        <strong>Import Error:</strong> {{ message }}
+      </div>
+    {% elif message.tags == 'success' %}
+      <div style="color:#4caf50;background:#2d3e2d;padding:10px;border-radius:4px;margin-bottom:12px;border-left:4px solid #4caf50;">
+        <strong>Success:</strong> {{ message }}
+      </div>
+    {% endif %}
+  {% endfor %}
+{% endif %}
+{% endif %}
+
+{{ block.super }}
+{% endblock %}

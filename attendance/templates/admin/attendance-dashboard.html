@@ -1,0 +1,259 @@
+{% extends "admin/base_site.html" %}
+{% load static list_utils %}
+
+{% block extrastyle %}
+<link rel="stylesheet" href="{% static 'css/style.css' %}">
+{% endblock %}
+
+{% block content %}
+<!-- Filters -->
+<form method="get" class="filter-form" role="search" aria-label="Attendance filters">
+  <div><label for="id_department">Department:</label>
+    <select id="id_department" name="department"><option value="">All</option>
+      {% for dept in departments %}<option value="{{ dept }}" {% if dept == selected_department %}selected{% endif %}>{{ dept }}</option>{% endfor %}
+    </select>
+  </div>
+
+  <div><label for="id_designation">Designation:</label>
+    <select id="id_designation" name="designation"><option value="">All</option>
+      {% for desig in designations %}<option value="{{ desig }}" {% if desig == selected_designation %}selected{% endif %}>{{ desig }}</option>{% endfor %}
+    </select>
+  </div>
+
+  <div><label for="id_month">Month:</label>
+    <select id="id_month" name="month">{% for m in months %}<option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ m }}</option>{% endfor %}</select>
+  </div>
+
+  <div><label for="id_year">Year:</label>
+    <select id="id_year" name="year">{% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}</select>
+  </div>
+
+  <div><button type="submit">Filter</button></div>
+</form>
+
+<!-- Navigation -->
+<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+  <a class="button" href="?{{ prev_qs }}" title="Previous month" style="padding:8px 12px;border:1px solid #484848;background:#3a3a3a;border-radius:4px;color:#f8f8f2;text-decoration:none;">← Previous</a>
+  <a class="button" href="?{{ next_qs }}" title="Next month" style="padding:8px 12px;border:1px solid #484848;background:#3a3a3a;border-radius:4px;color:#f8f8f2;text-decoration:none;">Next →</a>
+</div>
+
+<!-- Import/Export Section -->
+<div style="background:#2b2b2b;padding:12px;border-radius:6px;margin:15px 0;border:1px solid #484848;">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+    
+    <!-- Export Section -->
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="color:#f8f8f2;font-weight:600;font-size:14px;">📦 Export:</span>
+      <form method="post" style="display:inline;">
+        {% csrf_token %}
+        <button type="submit" name="export_data" value="1" style="padding:8px 12px;border:1px solid #5b80b2;background:#5b80b2;border-radius:4px;color:#ffffff;cursor:pointer;font-size:13px;">Export ZIP (with Images)</button>
+      </form>
+      {% if not has_openpyxl %}
+        <span style="font-size:11px;color:#ff6b6b;">(requires openpyxl)</span>
+      {% endif %}
+    </div>
+
+    <!-- Import Section -->
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="color:#f8f8f2;font-weight:600;font-size:14px;">📥 Import:</span>
+      <form method="post" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;">
+        {% csrf_token %}
+        <input type="file" name="import_file" accept=".csv,.xlsx,.xlsm,.zip" style="background:#3a3a3a;color:#f8f8f2;border:1px solid #484848;padding:6px;border-radius:4px;font-size:12px;" />
+        <button type="submit" style="padding:8px 12px;border:1px solid #417690;background:#417690;color:#ffffff;border-radius:4px;cursor:pointer;font-size:13px;">Import</button>
+      </form>
+    </div>
+    
+  </div>
+  
+  <!-- Help Text -->
+  <div style="margin-top:8px;font-size:11px;color:#999;">
+    <strong>Supported formats:</strong> CSV, Excel (.xlsx, .xlsm), ZIP (with attendance images)<br>
+    <strong>Required columns:</strong> employee_id, date | <strong>Optional:</strong> checkin_time, checkout_time, status, shift_name
+  </div>
+</div>
+
+<!-- Import feedback -->
+{% if import_errors %}
+  <div style="color:#ff6b6b;background:#3d3c3c;padding:10px;border-radius:4px;margin-bottom:12px;border-left:4px solid #ff6b6b;">
+    <strong>Import Errors:</strong>
+    <ul style="margin:5px 0 0 20px;">
+      {% for e in import_errors %}<li>{{ e }}</li>{% endfor %}
+    </ul>
+  </div>
+{% endif %}
+{% if import_success %}
+  <div style="color:#4caf50;background:#2d3e2d;padding:10px;border-radius:4px;margin-bottom:12px;border-left:4px solid #4caf50;">
+    <strong>Success:</strong> Import completed — Created: {{ import_success.created }}, Updated: {{ import_success.updated }}
+  </div>
+{% endif %}
+
+<!-- Header & Logo -->
+<div class="dashboard-header">
+  <img src="{% static 'images/logo.png' %}" alt="Company Logo" style="height:36px;" />
+  <h1 style="margin:0;font-size:16px;">Attendance Dashboard – {{ month }}/{{ year }}</h1>
+</div>
+
+<!-- Legend -->
+<div class="legend" aria-hidden="true">
+  <div class="legend-item">Present <img src="{% static 'icons/present.png' %}" alt="Present" /></div>
+  <div class="legend-item">Absent <img src="{% static 'icons/absent.png' %}" alt="Absent" /></div>
+  <div class="legend-item">Pending <img src="{% static 'icons/pendings.png' %}" alt="Pending" /></div>
+  <div class="legend-item">On Leave <img src="{% static 'icons/on_leave.png' %}" alt="On Leave" /></div>
+  <div class="legend-item">Holiday <img src="{% static 'icons/holidays.png' %}" alt="Holiday" /></div>
+  <div class="legend-item">Half Day <img src="{% static 'icons/half_day.png' %}" alt="Half Day" /></div>
+  <div class="legend-item">Early Leave <img src="{% static 'icons/early_leave.png' %}" alt="Early Leave" /></div>
+  <div class="legend-item">Off Day <img src="{% static 'icons/off_day.png' %}" alt="Off Day" /></div>
+  <div class="legend-item">Late <span style="color:#d32f2f;font-weight:700">!</span></div>
+  <div class="legend-item">Not Joined <span style="color:#888;font-size:11px;">N/J</span></div>
+</div>
+
+<!-- Table -->
+<div class="table-container" role="region" aria-label="Attendance table">
+  <table class="admin-table" role="table" aria-describedby="attendance-desc">
+    <thead>
+      <tr style="background-color:#393737">
+        <th style="z-index: 30 !important;" scope="col">Employee</th>
+        <th scope="col">Designation</th>
+        {% for day in days %}
+          <th scope="col" title="{{ day.full }}">
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.4;padding:4px 0;">
+              <div style="font-weight:600;font-size:13px;">{{ day.num }}</div>
+              <div style="font-size:11px;color:#aaa;">{{ day.short }}</div>
+            </div>
+          </th>
+        {% endfor %}
+        <th scope="col" class="attend-data">Total <br>Present</th>
+        <th scope="col" class="attend-data">Late</th>
+        <th scope="col" class="attend-data">On <br>Leave</th>
+        <th scope="col" class="attend-data">Holiday</th>
+        <th scope="col" class="attend-data">Absent</th>
+        <th scope="col" class="attend-data">Half <br>Day</th>
+        <th scope="col" class="attend-data">Early <br>Leave</th>
+
+      </tr>
+    </thead>
+    <tbody>
+      {% for emp in employees %}
+      <tr>
+        <td class="employee-cell">
+          <div style="display:flex;align-items:center;gap:10px;">
+            {% if emp.emp_image_url %}
+              <img src="{{ emp.emp_image_url }}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:1px solid #ddd" alt="{{ emp.name }}" />
+            {% else %}
+              <img src="{% static 'icons/default-avatar.png' %}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:1px solid #ddd" alt="avatar" />
+            {% endif %}
+            <div>
+              <a href="{% url 'attendance:employee_detail' emp.emp_pk %}" style="text-decoration:none;color:inherit;" title="View {{ emp.name }} details">
+                <div class="employee-names" style="font-weight:600;font-size:13px;color:#dac3c3;cursor:pointer;">{{ emp.name }}</div>
+                <div class="employee-id" style="font-size:12px;color:#9b9b9b">{{ emp.employee_id }}</div>
+              </a>
+            </div>
+          </div>
+        </td>
+
+        <td class="designation-cell">{{ emp.designation }}</td>
+
+        {% for _ in emp.statuses %}
+          {% with idx=forloop.counter0 %}
+            {% with st=emp.statuses|get_index:idx %}
+              <td class="day-cell" title="{% if st.status %}{{ st.status }}{% endif %}">
+                {% if st.status == 'Not Joined' %}
+                  {# Special case for employees who hadn't joined yet #}
+                  <span style="color:#888;font-size:10px;" title="Employee hadn't joined yet">N/J</span>
+                {% elif st.status %}
+                  {% if st.change_url %}
+                    <a href="{{ st.change_url }}" onclick="return openPopup(this.href);" aria-label="Open record for {{ emp.name }}">
+                      <span style="position:relative;display:inline-block;width:22px;height:22px;">
+                        <img src="{% static st.icon %}" style="width:22px;height:22px;object-fit:contain" alt="{{ st.status }}" />
+                        {% if st.is_late %}
+                          <span class="status-badge" title="{% if st.late_display %}Late by {{ st.late_display }}{% else %}Late{% endif %}">!</span>
+                        {% endif %}
+                      </span>
+                    </a>
+                  {% elif st.list_url %}
+                    <a href="{{ st.list_url }}" aria-label="View list for {{ emp.name }}">
+                      <span style="position:relative;display:inline-block;width:22px;height:22px;">
+                        <img src="{% static st.icon %}" style="width:22px;height:22px;object-fit:contain" alt="{{ st.status }}" />
+                        {% if st.is_late %}
+                          <span class="status-badge" title="{% if st.late_display %}Late by {{ st.late_display }}{% else %}Late{% endif %}">!</span>
+                        {% endif %}
+                      </span>
+                    </a>
+                  {% else %}
+                    <span style="position:relative;display:inline-block;width:22px;height:22px;">
+                      <img src="{% static st.icon %}" style="width:22px;height:22px;object-fit:contain" alt="{{ st.status }}" />
+                      {% if st.is_late %}
+                        <span class="status-badge" title="{% if st.late_display %}Late by {{ st.late_display }}{% else %}Late{% endif %}">!</span>
+                      {% endif %}
+                    </span>
+                  {% endif %}
+                {% else %}
+                  {# No status (future / no-data): show muted dash to indicate no info yet #}
+                  <span style="color:#ccc">—</span>
+                {% endif %}
+              </td>
+            {% endwith %}
+          {% endwith %}
+        {% endfor %}
+
+        <td style="font-weight:bold">{{ emp.totals.Present }}</td>
+        <td>{{ emp.totals.Late }}</td>
+        <td>{{ emp.totals.On_Leave }}</td>
+        <td>{{ emp.totals.Holiday }}</td>
+        <td>{{ emp.totals.Absent }}</td>
+        <td>{{ emp.totals.Half_Day }}</td>
+        <td>{{ emp.totals.Early_Leave }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Modal popup helper (unchanged) -->
+<script>
+function openPopup(url){
+  try {
+    var w = Math.min(1000, Math.round(screen.width * 0.8));
+    var h = Math.min(800, Math.round(screen.height * 0.8));
+    var left = Math.round((screen.width - w) / 2);
+    var top = Math.round((screen.height - h) / 2);
+    var name = 'attRecord_popup';
+    var features = ['toolbar=no','location=no','status=no','menubar=no','scrollbars=yes','resizable=yes','width=' + w,'height=' + h,'top=' + top,'left=' + left].join(',');
+    var win = window.open(url, name, features);
+    if (!win || typeof win.closed === 'undefined') { showModalIframe(url); return false; }
+    try { win.focus(); } catch(e) {}
+    return false;
+  } catch (err) { showModalIframe(url); return false; }
+}
+function showModalIframe(url){
+  if (!document.getElementById('att-modal-overlay')) {
+    var overlay = document.createElement('div');
+    overlay.id = 'att-modal-overlay';
+    overlay.style.position = 'fixed'; overlay.style.top = '0'; overlay.style.left = '0'; overlay.style.width = '100%'; overlay.style.height = '100%';
+    overlay.style.background = 'rgba(0,0,0,0.5)'; overlay.style.zIndex = '99999'; overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center'; overlay.style.justifyContent = 'center';
+    overlay.innerHTML = '\
+      <div id="att-modal" style="width:90%;max-width:1100px;height:90%;max-height:900px;background:#fff;border-radius:6px;overflow:hidden;display:flex;flex-direction:column;">\
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid #eee;background:#fafafa;">\
+          <strong style="font-size:14px">Record</strong>\
+          <div style="display:flex;gap:8px;align-items:center;">\
+            <button id="att-modal-refresh" style="padding:6px 10px;border:1px solid #ddd;background:#fff;border-radius:4px;cursor:pointer">Refresh</button>\
+            <button id="att-modal-close" style="padding:6px 10px;border:1px solid #ddd;background:#fff;border-radius:4px;cursor:pointer">Close</button>\
+          </div>\
+        </div>\
+        <iframe id="att-modal-iframe" src="" style="border:0;width:100%;flex:1;background:#fff;"></iframe>\
+      </div>';
+    document.body.appendChild(overlay);
+    document.getElementById('att-modal-close').addEventListener('click', closeModalIframe);
+    document.getElementById('att-modal-refresh').addEventListener('click', function(){ var f = document.getElementById('att-modal-iframe'); f.src = f.src; });
+    overlay.addEventListener('click', function(e){ if (e.target === overlay) closeModalIframe(); });
+  }
+  var iframe = document.getElementById('att-modal-iframe');
+  iframe.src = url;
+  document.getElementById('att-modal-overlay').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeModalIframe(){ var overlay = document.getElementById('att-modal-overlay'); if (overlay) overlay.style.display = 'none'; document.body.style.overflow = ''; }
+</script>
+
+{% endblock %}

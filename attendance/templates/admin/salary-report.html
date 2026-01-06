@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Salary Report - {{ month_name }}</title>
+
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; color: #000000; background: #fff; }
+        .header { background: #417690; color: white; padding: 15px; margin-bottom: 20px; }
+        .filters { background: #c8cdd3; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
+        .filters select, .filters button { margin: 5px; padding: 8px; color: #000000; }
+        .filters select option { color: #000000; background: #ffffff; }
+        .bonus-fine-section { display: flex; gap: 20px; margin-bottom: 20px; }
+        .bonus-fine-box { flex: 1; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .bonus-box { background: #e8f5e8; }
+        .fine-box { background: #ffe8e8; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; color: #333; }
+        th { background-color: #f2f2f2; font-weight: bold; color: #000; }
+        .amount { text-align: right; font-family: monospace; color: #000; }
+        .positive { color: #006400; font-weight: bold; }
+        .negative { color: #dc3545; font-weight: bold; }
+        .totals { background-color: #e8f4f8; font-weight: bold; color: #000; }
+        .late-days { color: #ff6600; font-weight: bold; }
+        .btn { background: #8db2c5; color: white; padding: 10px 15px; border: none; border-radius: 3px; cursor: pointer; }
+        .btn:hover { background: #2e5266; }
+        .auto-refresh { color: #ffffff; font-size: 12px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>💰 Salary Report - {{ month_name }}</h1>
+        <div class="auto-refresh">💡 Data updates instantly from database</div>
+        <div style="margin-top: 10px;">
+            <a href="/admin/" class="btn">← Back to Admin</a>
+            <span style="color: #28a745; margin-left: 10px;">
+                ✅ Auto-processing enabled
+            </span>
+        </div>
+    </div>
+    
+    {% if message %}
+    <div style="background: #d4edda; color: #155724; padding: 10px; margin-bottom: 20px; border-radius: 5px; border: 1px solid #c3e6cb;">
+        ✅ {{ message }}
+    </div>
+    {% endif %}
+
+    <div class="filters">
+        <form method="GET">
+            <select name="month">
+                {% for m in months %}
+                    <option value="{{ m }}" {% if m == month %}selected{% endif %}>
+                        {{ m|date:"F" }}
+                    </option>
+                {% endfor %}
+            </select>
+            
+            <select name="year">
+                {% for y in years %}
+                    <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+                {% endfor %}
+            </select>
+            
+            <select name="department">
+                <option value="">All Departments</option>
+                {% for dept in departments %}
+                    <option value="{{ dept }}" {% if dept == selected_department %}selected{% endif %}>
+                        {{ dept }}
+                    </option>
+                {% endfor %}
+            </select>
+            
+            <button type="submit" class="btn">Filter</button>
+        </form>
+    </div>
+
+    <div class="bonus-fine-section">
+        <div class="bonus-fine-box bonus-box">
+            <h3>💰 Bonus Rules</h3>
+            <ul>
+                <li><strong>Perfect Attendance:</strong> 1,000 BDT (0 late days)</li>
+                <li><strong>Manual Bonuses:</strong> Added by admin</li>
+            </ul>
+        </div>
+        <div class="bonus-fine-box fine-box">
+            <h3>⚠️ Fine Rules</h3>
+            <ul>
+                <li><strong>Late Fine:</strong> 1,000 BDT per 3 late days</li>
+                <li><strong>Manual Fines:</strong> Added by admin</li>
+            </ul>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Employee</th>
+                <th>Department</th>
+                <th>Working Days</th>
+                <th>Late Days</th>
+                <th>Monthly Salary</th>
+                <th>Bonuses (+)</th>
+                <th>Fines (-)</th>
+                <th>Final Salary</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for data in salary_data %}
+            <tr>
+                <td>
+                    <strong>{{ data.employee.name }}</strong><br>
+                    <small>{{ data.employee.employee_id }}</small>
+                </td>
+                <td>{{ data.employee.department }}</td>
+                <td class="amount">{{ data.working_days }}</td>
+                <td class="amount late-days">
+                    {% if data.late_days > 0 %}{{ data.late_days }}{% else %}-{% endif %}
+                </td>
+                <td class="amount">{{ data.base_salary|floatformat:2 }} BDT</td>
+                <td class="amount positive">
+                    {% if data.total_bonus > 0 %}+{{ data.total_bonus|floatformat:2 }} BDT{% else %}-{% endif %}
+                </td>
+                <td class="amount negative">
+                    {% if data.total_fine > 0 %}-{{ data.total_fine|floatformat:2 }} BDT{% else %}-{% endif %}
+                </td>
+                <td class="amount" style="font-weight: bold; font-size: 1.1em;">
+                    {{ data.final_salary|floatformat:2 }} BDT
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="totals">
+                <td colspan="4"><strong>TOTALS</strong></td>
+                <td class="amount">{{ totals.base_salary|floatformat:2 }} BDT</td>
+                <td class="amount positive">+{{ totals.bonuses|floatformat:2 }} BDT</td>
+                <td class="amount negative">-{{ totals.fines|floatformat:2 }} BDT</td>
+                <td class="amount" style="font-size: 1.2em;">
+                    <strong>{{ totals.final_salary|floatformat:2 }} BDT</strong>
+                </td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div style="margin-top: 30px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
+        <h3>📋 Salary Calculation:</h3>
+        <ul>
+            <li><strong>Monthly Salary:</strong> Fixed monthly amount</li>
+            <li><strong>Perfect Attendance Bonus:</strong> 1,000 BDT (0 late days)</li>
+            <li><strong>Late Fine:</strong> 1,000 BDT per 3 late days</li>
+            <li><strong>Final Salary:</strong> Monthly Salary + Bonuses - Fines</li>
+        </ul>
+    </div>
+</body>
+</html>
